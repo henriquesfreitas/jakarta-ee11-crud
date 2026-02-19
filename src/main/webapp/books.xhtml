@@ -1,0 +1,97 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:p="http://primefaces.org/ui"
+                template="/WEB-INF/template.xhtml">
+
+    <ui:define name="title">Manage Books</ui:define>
+
+    <ui:define name="content">
+        <h:form id="form">
+            <p:growl id="msgs" showDetail="true" />
+
+            <div class="card">
+                <p:toolbar>
+                    <p:toolbarGroup>
+                        <p:commandButton value="New Book" icon="pi pi-plus"
+                                         actionListener="#{bookController.prepareCreate}"
+                                         update=":dialogForm:book-content"
+                                         oncomplete="PF('bookDialog').show()"
+                                         styleClass="ui-button-success" style="margin-right: .5rem" />
+                    </p:toolbarGroup>
+                </p:toolbar>
+
+                <p:dataTable id="dt-books" value="#{bookController.lazyModel}" var="book"
+                             paginator="true" rows="10" stripedRows="true"
+                             lazy="true" paginatorPosition="bottom">
+
+                    <p:column headerText="ID" width="50">
+                        <h:outputText value="#{book.id}" />
+                    </p:column>
+                    <p:column headerText="Title" sortBy="#{book.title}">
+                        <h:outputText value="#{book.title}" />
+                    </p:column>
+                    <p:column headerText="Author" sortBy="#{book.author}">
+                        <h:outputText value="#{book.author}" />
+                    </p:column>
+                    <p:column headerText="Price">
+                        <h:outputText value="#{book.price}">
+                            <f:convertNumber type="currency" currencySymbol="$" />
+                        </h:outputText>
+                    </p:column>
+                    <p:column headerText="Actions">
+                        <p:commandButton icon="pi pi-pencil" update=":dialogForm:book-content"
+                                         oncomplete="PF('bookDialog').show()"
+                                         styleClass="rounded-button ui-button-info ui-button-flat">
+                            <f:setPropertyActionListener value="#{book}" target="#{bookController.currentBook}" />
+                        </p:commandButton>
+                        <p:commandButton icon="pi pi-trash" action="#{bookController.delete(book)}"
+                                         update="dt-books :form:msgs"
+                                         styleClass="rounded-button ui-button-danger ui-button-flat">
+                            <p:confirm header="Confirmation" message="Delete this book?" icon="pi pi-exclamation-triangle"/>
+                        </p:commandButton>
+                    </p:column>
+                </p:dataTable>
+            </div>
+
+            <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true" width="350">
+                <p:commandButton value="No" type="button" styleClass="ui-confirmdialog-no ui-button-flat"/>
+                <p:commandButton value="Yes" type="button" styleClass="ui-confirmdialog-yes" />
+            </p:confirmDialog>
+        </h:form>
+
+        <h:form id="dialogForm">
+            <p:dialog header="Book Details" showEffect="fade" modal="true" widgetVar="bookDialog" responsive="true">
+                <p:outputPanel id="book-content" class="ui-fluid">
+                    <div class="field">
+                        <p:outputLabel for="title">Title</p:outputLabel>
+                        <p:inputText id="title" value="#{bookController.currentBook.title}" required="true" />
+                    </div>
+                    <div class="field">
+                        <p:outputLabel for="author">Author</p:outputLabel>
+                        <p:inputText id="author" value="#{bookController.currentBook.author}" required="true" />
+                    </div>
+                    <div class="field">
+                        <p:outputLabel for="price">Price</p:outputLabel>
+                        <p:inputNumber id="price" value="#{bookController.currentBook.price}" symbol="$" required="true"/>
+                    </div>
+                    <div class="field">
+                        <p:outputLabel for="isbn">ISBN (13 digits)</p:outputLabel>
+                        <p:inputText id="isbn" value="#{bookController.currentBook.isbn}" maxlength="13">
+                            <p:keyFilter mask="num" />
+                        </p:inputText>
+                    </div>
+                </p:outputPanel>
+
+                <f:facet name="footer">
+                    <p:commandButton value="Save" icon="pi pi-check" actionListener="#{bookController.save}"
+                                     update="book-content :form:dt-books :form:msgs" />
+                    <p:commandButton value="Cancel" icon="pi pi-times" onclick="PF('bookDialog').hide()"
+                                     class="ui-button-secondary" />
+                </f:facet>
+            </p:dialog>
+        </h:form>
+    </ui:define>
+
+</ui:composition>

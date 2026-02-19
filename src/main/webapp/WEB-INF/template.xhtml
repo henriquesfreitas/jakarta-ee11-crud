@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+    <title><ui:insert name="title">Library Manager</ui:insert></title>
+    <style>
+        body {
+            background-color: #f4f4f4;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .layout-content {
+            padding: 20px;
+        }
+    </style>
+</h:head>
+
+<h:body>
+    <h:form>
+        <p:menubar>
+            <p:menuitem value="Home" icon="pi pi-home" outcome="/index" />
+            <p:menuitem value="Books" icon="pi pi-book" outcome="/books" />
+
+            <f:facet name="options">
+                <div class="ui-input-icon-left mr-2">
+                    <i class="pi pi-fw pi-search" />
+                    <p:inputText placeholder="Search"/>
+                </div>
+                <p:button value="Logout" icon="pi pi-fw pi-sign-out" styleClass="ui-button-info"/>
+            </f:facet>
+        </p:menubar>
+    </h:form>
+
+    <div class="layout-content">
+        <ui:insert name="content">
+            Default Content
+        </ui:insert>
+    </div>
+
+</h:body>
+</html>
