@@ -1,5 +1,6 @@
 package com.library.dto;
 
+import com.library.model.BookStatus;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,4 +29,6 @@ public class BookDTO implements Serializable {
 
     @Pattern(regexp = "\\d{13}", message = "ISBN must be exactly 13 digits")
     private String isbn;
+
+    private BookStatus status = BookStatus.AVAILABLE;
 }

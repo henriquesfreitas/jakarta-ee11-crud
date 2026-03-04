@@ -9,4 +9,6 @@ public interface BookService {
     int countBooks();
     void saveBook(BookDTO bookDTO);
     void deleteBook(Long id);
+    void buyBook(Long id);
+    void processPurchase(Long id);
 }

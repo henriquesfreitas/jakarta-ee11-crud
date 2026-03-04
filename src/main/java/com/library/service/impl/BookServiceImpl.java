@@ -1,45 +1,26 @@
 package com.library.service.impl;
 
 import com.library.dto.BookDTO;
+import com.library.dto.BookOrderDTO;
+import com.library.event.BookUpdateEvent;
 import com.library.mapper.BookMapper;
+import com.library.messaging.OrderProducer;
 import com.library.model.Book;
+import com.library.model.BookStatus;
 import com.library.repository.BookRepository;
 import com.library.service.BookService;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
 @ApplicationScoped
-/*
-In modern Jakarta EE (CDI), using @ApplicationScoped for Services and Repositories is the standard "best practice" for Stateless components.
-Here is why:
-        1. Performance (Singleton Pattern)
-•
-@ApplicationScoped: The container creates only one instance of the class for the entire lifetime of the application. This instance is shared by all users and all requests.
-        •
-@RequestScoped: The container would create a new instance for every single HTTP request and destroy it afterwards. This creates unnecessary garbage collection pressure.
-Since your Service and Repository classes do not hold any user-specific state (fields like currentUser or shoppingCart), there is no need to create new ones constantly.
-        2. Thread Safety & The EntityManager Magic
-You might wonder: "If 100 users use the same Repository instance, won't the EntityManager get mixed up?"
-No, because of how @PersistenceContext works:
-        •
-The EntityManager injected into an @ApplicationScoped bean is actually a Proxy (a smart wrapper).
-        •
-When a thread calls repository.save(), the Proxy looks up the specific EntityManager associated with that current thread/transaction.
-•
-This makes it completely thread-safe, even though the Repository instance itself is a singleton.
-3. Comparison with other scopes
-•
-@Stateless (EJB): Used to be the default. It uses a "pool" of instances. It's heavier and less popular now that CDI (@ApplicationScoped + @Transactional) is the standard.
-        •
-@RequestScoped: Good if your service needs to store request-specific data in fields, but usually, we pass that data as method arguments (DTOs).
-In summary: We use @ApplicationScoped because it is the most efficient (memory/CPU) choice for stateless logic classes in CDI.
-        */
 public class BookServiceImpl implements BookService {
 
     @Inject
@@ -47,6 +28,12 @@ public class BookServiceImpl implements BookService {
 
     @Inject
     private BookMapper mapper;
+
+    @Inject
+    private OrderProducer orderProducer;
+
+    @Inject
+    private Event<BookUpdateEvent> bookUpdateEvent;
 
     @Override
     public List<BookDTO> getAllBooks() {
@@ -85,6 +72,8 @@ public class BookServiceImpl implements BookService {
         } else {
             log.debug("Creating new book");
             book = mapper.toEntity(bookDTO);
+            // Ensure new books are always AVAILABLE
+            book.setStatus(BookStatus.AVAILABLE);
         }
         repository.save(book);
         log.info("Book saved successfully");
@@ -101,5 +90,39 @@ public class BookServiceImpl implements BookService {
                 });
         repository.delete(book);
         log.info("Book deleted successfully");
+    }
+
+    @Override
+    @Transactional
+    public void buyBook(Long id) {
+        log.info("Initiating purchase for book ID: {}", id);
+        // Send to JMS Queue
+        BookOrderDTO order = new BookOrderDTO(id, LocalDateTime.now());
+        orderProducer.sendOrder(order);
+        log.info("Purchase order sent to queue");
+    }
+
+    @Override
+    @Transactional
+    public void processPurchase(Long id) {
+        log.info("Processing purchase for book ID: {}", id);
+        Book book = repository.findById(id)
+                .orElseThrow(() -> {
+                    log.error("Book not found with ID: {}", id);
+                    return new IllegalArgumentException("Book not found with ID: " + id);
+                });
+        
+        if (book.getStatus() == BookStatus.SOLD) {
+            log.warn("Book ID {} is already sold. Skipping update.", id);
+            // In a real system, you might want to handle this (e.g., refund)
+            return;
+        }
+        
+        book.setStatus(BookStatus.SOLD);
+        repository.save(book);
+        log.info("Book ID {} marked as SOLD", id);
+        
+        // Fire CDI event for WebSocket update
+        bookUpdateEvent.fire(new BookUpdateEvent("Book " + id + " sold"));
     }
 }

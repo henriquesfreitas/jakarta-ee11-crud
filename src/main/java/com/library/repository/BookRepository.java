@@ -42,12 +42,12 @@ public class BookRepository {
 
     public List<Book> findAll() {
         log.debug("Querying all books from database");
-        return em.createQuery("SELECT b FROM Book b", Book.class).getResultList();
+        return em.createQuery("SELECT b FROM Book b ORDER BY b.id ASC", Book.class).getResultList();
     }
 
     public List<Book> findRange(int first, int pageSize) {
         log.debug("Querying books range: first={}, pageSize={}", first, pageSize);
-        return em.createQuery("SELECT b FROM Book b", Book.class)
+        return em.createQuery("SELECT b FROM Book b ORDER BY b.id ASC", Book.class)
                 .setFirstResult(first)
                 .setMaxResults(pageSize)
                 .getResultList();

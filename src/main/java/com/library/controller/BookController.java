@@ -1,6 +1,7 @@
 package com.library.controller;
 
 import com.library.dto.BookDTO;
+import com.library.model.BookStatus;
 import com.library.service.BookService;
 import com.library.util.ExceptionUtil;
 import com.library.util.MessageUtil;
@@ -68,6 +69,16 @@ public class BookController implements Serializable {
             messageUtil.addWarnMessage("Deleted", "Book Removed");
         } catch (Exception e) {
              exceptionUtil.handleException(e);
+        }
+    }
+
+    public void buy(BookDTO book) {
+        log.info("Attempting to buy book with ID: {}", book.getId());
+        try {
+            service.buyBook(book.getId());
+            messageUtil.addInfoMessage("Success", "Book Bought Successfully!");
+        } catch (Exception e) {
+            exceptionUtil.handleException(e);
         }
     }
 }

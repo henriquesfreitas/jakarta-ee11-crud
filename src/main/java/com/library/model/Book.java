@@ -29,4 +29,8 @@ public class Book extends BaseEntity {
 
     @Pattern(regexp = "\\d{13}", message = "ISBN must be exactly 13 digits")
     private String isbn;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BookStatus status = BookStatus.AVAILABLE;
 }

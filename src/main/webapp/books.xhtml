@@ -8,8 +8,21 @@
     <ui:define name="title">Manage Books</ui:define>
 
     <ui:define name="content">
+        <script>
+            function handleMessage(message) {
+                console.log('Received update: ' + message);
+                updateTable();
+            }
+        </script>
+
         <h:form id="form">
             <p:growl id="msgs" showDetail="true" />
+
+            <!-- WebSocket to listen for updates (Application Scope for Broadcast) -->
+            <f:websocket channel="bookChannel" scope="application" onmessage="handleMessage" onopen="console.log('WebSocket connected')" />
+
+            <!-- RemoteCommand to update the table when message received -->
+            <p:remoteCommand name="updateTable" update="dt-books" />
 
             <div class="card">
                 <p:toolbar>
@@ -23,7 +36,7 @@
                 </p:toolbar>
 
                 <p:dataTable id="dt-books" value="#{bookController.lazyModel}" var="book"
-                             paginator="true" rows="10" stripedRows="true"
+                             paginator="true" rows="3" stripedRows="true"
                              lazy="true" paginatorPosition="bottom">
 
                     <p:column headerText="ID" width="50">
@@ -40,7 +53,18 @@
                             <f:convertNumber type="currency" currencySymbol="$" />
                         </h:outputText>
                     </p:column>
+                    <p:column headerText="Status" width="100">
+                        <p:tag value="#{book.status}" severity="#{book.status == 'AVAILABLE' ? 'success' : 'danger'}" />
+                    </p:column>
                     <p:column headerText="Actions">
+                        <p:commandButton icon="pi pi-shopping-cart" action="#{bookController.buy(book)}"
+                                         update="dt-books :form:msgs"
+                                         rendered="#{book.status == 'AVAILABLE'}"
+                                         styleClass="rounded-button ui-button-warning ui-button-flat"
+                                         title="Buy Book">
+                            <p:confirm header="Confirmation" message="Buy this book?" icon="pi pi-shopping-cart"/>
+                        </p:commandButton>
+
                         <p:commandButton icon="pi pi-pencil" update=":dialogForm:book-content"
                                          oncomplete="PF('bookDialog').show()"
                                          styleClass="rounded-button ui-button-info ui-button-flat">
