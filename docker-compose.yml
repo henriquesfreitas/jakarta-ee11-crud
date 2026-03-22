@@ -1,0 +1,53 @@
+version: '3.8'
+
+# Docker Compose is a tool for defining and running multi-container Docker applications.
+# Here we define two services (containers): a PostgreSQL database and your WildFly application.
+
+services:
+  # ==========================================
+  # Service 1: PostgreSQL Database
+  # ==========================================
+  postgres-db:
+    # Use the official PostgreSQL 16 image from Docker Hub
+    image: postgres:16
+    container_name: library-postgres
+    # Set environment variables to configure the database on startup
+    environment:
+      POSTGRES_USER: library_user
+      POSTGRES_PASSWORD: library_password
+      POSTGRES_DB: library_db
+    # Expose the database port to your host machine (so you can connect with DBeaver/pgAdmin)
+    ports:
+      - "5432:5432"
+    # Create a persistent volume. This ensures your data isn't lost when the container stops!
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  # ==========================================
+  # Service 2: Your WildFly Application
+  # ==========================================
+  wildfly-app:
+    # Instead of pulling a pre-built image, tell Docker Compose to build the image
+    # using the Dockerfile in the current directory ('.')
+    build: .
+    container_name: library-app
+    # Map port 8080 inside the container to port 8080 on your machine
+    ports:
+      - "8080:8080"
+      - "9990:9990" # Management console
+    # This tells Docker to start the 'postgres-db' container BEFORE starting WildFly
+    depends_on:
+      - postgres-db
+    
+    # IMPORTANT: To make this work without modifying the WildFly XML manually, 
+    # we can use WildFly's environment variables to automatically configure the Datasource!
+    # WildFly (Galleon provisioned or standard with standard config) can read these to create 'LibraryDS'.
+    environment:
+      # Database connection URL. Notice we use 'postgres-db' (the service name above) as the host!
+      DB_URL: jdbc:postgresql://postgres-db:5432/library_db
+      DB_USER: library_user
+      DB_PASSWORD: library_password
+
+# Define the persistent volume referenced above
+volumes:
+  postgres-data:

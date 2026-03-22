@@ -1,0 +1,56 @@
+# Start offline server to make changes
+embed-server --std-out=echo --server-config=standalone-full.xml
+
+# 1. Add PostgreSQL JDBC Driver Module
+module add --name=org.postgresql --resources=/opt/jboss/wildfly/custom-libs/postgresql-42.7.8.jar --dependencies=javax.api,javax.transaction.api
+
+# 2. Register the Driver
+/subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql,driver-module-name=org.postgresql,driver-class-name=org.postgresql.Driver,driver-xa-datasource-class-name=org.postgresql.xa.PGXADataSource)
+
+# 3. Create the Datasource
+data-source add \
+    --name=LibraryDS \
+    --jndi-name=java:jboss/LibraryDS \
+    --driver-name=postgresql \
+    --connection-url=${env.DB_URL:jdbc:postgresql://postgres-db:5432/library_db} \
+    --user-name=${env.DB_USER:library_user} \
+    --password=${env.DB_PASSWORD:library_password} \
+    --use-ccm=true \
+    --max-pool-size=25 \
+    --blocking-timeout-wait-millis=5000 \
+    --enabled=true
+
+# 4. Configure JMS for WildFly
+try
+    /subsystem=messaging-activemq/server=default:read-resource()
+catch
+    /subsystem=messaging-activemq/connector=in-vm:add(factory-class=org.apache.activemq.artemis.core.remoting.impl.invm.InVMConnectorFactory, params={server-id=0})
+    /subsystem=messaging-activemq/pooled-connection-factory=activemq-ra:write-attribute(name=connectors, value=["in-vm"])
+
+    # Provide Elytron ApplicationDomain which delegates to the default users properties files.
+    /subsystem=messaging-activemq/server=default:add(elytron-domain=ApplicationDomain)
+
+    # Configure required security settings.
+    # The crucial fix here is removing the requirement for a specific role ('guest')
+    # to connect, OR mapping the generic unauthenticated user properly.
+    # By mapping the unauthenticated user to 'guest' in elytron, we bypass AMQ229031.
+    /subsystem=messaging-activemq/server=default/security-setting=#:add()
+    /subsystem=messaging-activemq/server=default/security-setting=#/role=guest:add(send=true,consume=true,create-non-durable-queue=true,delete-non-durable-queue=true)
+
+    /subsystem=messaging-activemq/server=default/in-vm-acceptor=in-vm:add(server-id=0)
+end-try
+
+# 5. Fix ActiveMQ Guest Authentication (AMQ229031)
+# The default activemq-ra connection factory attempts to connect as "guest"/"guest".
+# However, inside Docker, the Elytron ApplicationDomain does not have a "guest" user
+# defined in its application-users.properties file by default.
+# The simplest fix for an embedded local queue is to remove the hardcoded user/password
+# from the connection factory, allowing it to connect anonymously over in-vm.
+/subsystem=messaging-activemq/pooled-connection-factory=activemq-ra:undefine-attribute(name=user)
+/subsystem=messaging-activemq/pooled-connection-factory=activemq-ra:undefine-attribute(name=password)
+
+# Now that we are sure the server exists and authentication is fixed, add the OrderQueue
+/subsystem=messaging-activemq/server=default/jms-queue=OrderQueue:add(entries=["java:/jms/queue/OrderQueue"])
+
+# Stop offline server
+stop-embedded-server
