@@ -6,4 +6,4 @@
 - Postgres
 
 ## config:
-- used postgres on Neon or with docker with image of postgres and wildfly
+- used postgres on Neon or with docker`s images of postgres and wildfly
